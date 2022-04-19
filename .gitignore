@@ -2,6 +2,7 @@
 
 # Binaries for programs and plugins
 threadme
+threadme_*
 *.exe
 *.exe~
 *.dll
