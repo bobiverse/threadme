@@ -25,6 +25,8 @@ func main() {
 	delayMs := flag.Int("d", 10, "Delay in milliseconds")
 	wtime := flag.Int("tl", 60*1000, "Time limit for single job in milliseconds")
 	n := flag.Int("n", 100, "If no file given this is how many jobs will be performed")
+	stopOnMsg := flag.String("stop-on", "", "If any job gets this message, all stops")
+	// whileMsg := flag.String("while", "", "Keep running while all have this message")
 	flag.Parse()
 
 	*cmd = strings.TrimSpace(*cmd)
@@ -59,11 +61,31 @@ func main() {
 	}
 	fmt.Printf("%20s: [%d]\n", "Threads", *threads)
 	fmt.Printf("%20s: %d ms\n", "Delay", *delayMs)
-	fmt.Printf("%20s: %d ms\n", "Time limit for single worker", *wtime)
+	fmt.Printf("%20s: %d ms\n", "Timeout for single job", *wtime)
+
+	if *stopOnMsg != "" {
+		fmt.Printf("%20s: '%s'\n", "Stop if contains", *stopOnMsg)
+	}
+
 	fmt.Println(strings.Repeat("-", 80))
 
+	var tStart = time.Now()
+	defer func() {
+		log.Printf("> Duration: %s ", time.Since(tStart))
+	}()
+
 	var maxWorkers = *threads
-	sg := semgroup.NewGroup(context.Background(), int64(maxWorkers))
+
+	ctx, cancelAll := context.WithCancel(context.Background())
+	sg := semgroup.NewGroup(ctx, int64(maxWorkers))
+
+	go func() {
+		<-ctx.Done()
+		// The context was canceled
+		log.Printf("> Stopping all workers!")
+		log.Printf("> Duration: %s ", time.Since(tStart))
+		os.Exit(1)
+	}()
 
 	// fill `flines` with `n` numbers and use same `for` loop
 	if len(flines) == 0 {
@@ -81,10 +103,10 @@ func main() {
 		flcmd = strings.ReplaceAll(flcmd, "{{LINE}}", fline)
 
 		sg.Go(func() error {
-			//log.Printf("`%v`", flcmd)
+			// log.Printf("`%v`", flcmd)
 			cmdOut, errBuf, err := runBashWithTimeout(time.Duration(*wtime)*time.Millisecond, flcmd)
 			cmdOut = bytes.TrimSpace(cmdOut)
-			//log.Printf("%v -- %v -- %v", cmdOut, errBuf, err)
+			// log.Printf("%v -- %v -- %v", cmdOut, errBuf, err)
 
 			errStr := ""
 			if errBuf != nil && len(errBuf) > 0 {
@@ -103,6 +125,23 @@ func main() {
 
 			}
 			log.Printf("[%d/%d] [%s] ==> [%s]", i, total, flcmd, cmdOut)
+
+			// Stop all workers when specific string seen
+			if *stopOnMsg != "" {
+				var needToStop bool
+				if strings.Contains(string(cmdOut), *stopOnMsg) {
+					log.Printf("> Stop output message found: %s", cmdOut)
+					needToStop = true
+				}
+				if strings.Contains(errStr, *stopOnMsg) {
+					log.Printf("> Stop error message found: %s", errStr)
+					needToStop = true
+				}
+				if needToStop {
+					cancelAll()
+					return nil
+				}
+			}
 
 			time.Sleep(time.Duration(*delayMs) * time.Millisecond)
 
@@ -163,7 +202,7 @@ func runBashWithTimeout(timeout time.Duration, cmdstr string) ([]byte, []byte, e
 
 			pgid, err := syscall.Getpgid(cmd.Process.Pid)
 			if err == nil {
-				//log.Printf("[ KILL ] Kill process of command: %s", name)
+				// log.Printf("[ KILL ] Kill process of command: %s", name)
 				if err := syscall.Kill(-pgid, 15); err != nil { // note the minus sign
 					// skip error check
 					log.Printf("(Warning: %s)", err)
