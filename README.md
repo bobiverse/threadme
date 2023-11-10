@@ -114,4 +114,3 @@ _Default_: `/bin/bash`
 # 2023/11/10 18:47:57 [0/1] [echo $USER $RANDOM] ==> [bobiverse]
 ```
 
-
