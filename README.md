@@ -58,30 +58,6 @@ Output:
 ...
 ```
 
-
-## Keep running while message present 
-Use `-while=` flag to cease all tasks when a success message is absent from any of the jobs.
-_Note_: All jobs will be terminated if the message differs for even a single job.
-
-```sh
-./threadme -cmd 'bash sendmail.sh {{LINE}}' -f customers.txt -while 'Sent:'
-```
-Output:
-```
-2022/04/15 15:52:36 [0/8256] [bash sendmail.sh a@a.example.com] ==> [Sent: a@a.example.com]
-2022/04/15 15:39:24 ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit status 1;]
-2022/04/15 15:52:36 [2/8256] [bash sendmail.sh c@c.example.com] ==> [Sent: c@c.example.com]
-2022/04/15 15:52:36 [1/8256] [bash sendmail.sh b@b.example.com] ==> [Sent: b@b.example.com]
-2022/04/15 15:52:36 [3/8256] [bash sendmail.sh d@d.example.com] ==> [Sent: d@d.example.com]
-2022/04/15 15:52:37 [4/8256] [bash sendmail.sh e@e.example.com] ==> [Error: timeout while sending e@e.example.com]
-2022/04/15 15:52:37 > No `while message` found: Error: timeout while sending e@e.example.com
-2022/04/15 15:52:37 > Stopping all workers!
-2022/04/15 15:52:37 > Duration: 12.03404163s 
-exit status 1
-...
-```
-
-
 ## Stop all jobs if error message occurs 
 Use `-stop-on=` flag to halt all tasks upon encountering an error message.
 Note: All tasks will be discontinued if any job yields a message indicating a stop condition.
@@ -103,3 +79,23 @@ Output:
 exit status 1
 ...
 ```
+
+## Keep running while message present 
+Use `-while=` flag to cease all tasks when a success message is absent from any of the jobs.
+_Note_: All jobs will be terminated if the message differs for even a single job.
+
+```sh
+./threadme -cmd 'bash sendmail.sh {{LINE}}' -f customers.txt -while 'Sent:'
+```
+Output:
+```
+2022/04/15 15:52:36 [0/8256] [bash sendmail.sh a@a.example.com] ==> [Sent: a@a.example.com]
+2022/04/15 15:39:24 ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit status 1;]
+2022/04/15 15:52:37 > No `while message` found: Invalid user; exit status 1;
+2022/04/15 15:52:37 > Stopping all workers!
+2022/04/15 15:52:37 > Duration: 7.03404163s 
+exit status 1
+...
+```
+
+
