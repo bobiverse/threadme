@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+var cmdInterpreter = "/bin/bash"
+
 const example = "`./threadme -t5 -cmd 'echo \"{{N}}:{{LINE}}\"'`"
 
 func main() {
@@ -27,7 +29,12 @@ func main() {
 	n := flag.Int("n", 100, "If no file given this is how many jobs will be performed")
 	stopOnMsg := flag.String("stop-on", "", "If any job gets this message, all stops")
 	whileMsg := flag.String("while", "", "Keep running while all have this message")
+	interpreter := flag.String("interpreter", cmdInterpreter, "Interpreter for command")
 	flag.Parse()
+
+	if *interpreter != "" {
+		cmdInterpreter = *interpreter
+	}
 
 	*cmd = strings.TrimSpace(*cmd)
 	if *cmd == "" {
@@ -188,10 +195,10 @@ func runBashWithTimeout(timeout time.Duration, cmdstr string) ([]byte, []byte, e
 	// Run command in env as whole
 	// Useful when need to execute command with wildcard so these characters
 	// is not treated as string
-	name := "/bin/sh"
+	name := cmdInterpreter
 	args := []string{
 		"-c",
-		strings.TrimPrefix(cmdstr, "/bin/sh -c "), // as one argument
+		strings.TrimPrefix(cmdstr, cmdInterpreter+" -c "), // as one argument
 	}
 
 	cmd := exec.Command(name, args...) // #nosec G204
