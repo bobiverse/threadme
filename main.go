@@ -26,7 +26,7 @@ func main() {
 	wtime := flag.Int("tl", 60*1000, "Time limit for single job in milliseconds")
 	n := flag.Int("n", 100, "If no file given this is how many jobs will be performed")
 	stopOnMsg := flag.String("stop-on", "", "If any job gets this message, all stops")
-	// whileMsg := flag.String("while", "", "Keep running while all have this message")
+	whileMsg := flag.String("while", "", "Keep running while all have this message")
 	flag.Parse()
 
 	*cmd = strings.TrimSpace(*cmd)
@@ -65,6 +65,10 @@ func main() {
 
 	if *stopOnMsg != "" {
 		fmt.Printf("%20s: '%s'\n", "Stop if contains", *stopOnMsg)
+	}
+
+	if *whileMsg != "" {
+		fmt.Printf("%20s: '%s'\n", "Continue while", *whileMsg)
 	}
 
 	fmt.Println(strings.Repeat("-", 80))
@@ -125,6 +129,13 @@ func main() {
 
 			}
 			log.Printf("[%d/%d] [%s] ==> [%s]", i, total, flcmd, cmdOut)
+
+			// Stop if not expected message
+			if *whileMsg != "" && !strings.Contains(string(cmdOut), *whileMsg) {
+				log.Printf("> No `while message` found: %s", cmdOut)
+				cancelAll()
+				return nil
+			}
 
 			// Stop all workers when specific string seen
 			if *stopOnMsg != "" {
