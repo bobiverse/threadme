@@ -13,7 +13,7 @@ Run command with default params
 Output:
 ```
              Command: [date +%s]
-Job count to perform: [6]
+Job count to perform: [100]
              Threads: [5]
                Delay: 10 ms
 Time limit for single worker: 60000 ms
