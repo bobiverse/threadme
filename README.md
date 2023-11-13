@@ -33,6 +33,7 @@ Use param `{{N}}` to use job number.
 ```
 <details>
     <summary>Output:</summary>
+
 ```
 [4/10] [wc -l 4.txt] ==> [3 4.txt]
 ERROR: [2/10] [wc -l 2.txt] ==> [wc: 2.txt: No such file or directory; exit status 1;]
@@ -52,6 +53,7 @@ Use param `{{LINE}}` to use job param from file.
 ```
 <details>
     <summary>Output:</summary>
+
 ```
 [0/8256] [bash sendmail.sh a@a.example.com] ==> [Sent: a@a.example.com]
 ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit status 1;]
@@ -71,6 +73,7 @@ Note: All tasks will be discontinued if any job yields a message indicating a st
 ```
 <details>
     <summary>Output:</summary>
+
 ```
 [0/8256] [bash sendmail.sh a@a.example.com] ==> [Sent: a@a.example.com]
 ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit status 1;]
@@ -93,6 +96,7 @@ _Note_: All jobs will be terminated if the message differs for even a single job
 ```
 <details>
     <summary>Output:</summary>
+
 ```
 [0/8256] [bash sendmail.sh a@a.example.com] ==> [Sent: a@a.example.com]
 ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit status 1;]
