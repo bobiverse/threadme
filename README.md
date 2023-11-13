@@ -31,7 +31,8 @@ Use param `{{N}}` to use job number.
 ```sh
 ./threadme -cmd 'wc -l {{N}}.txt' 
 ```
-Output:
+<details>
+    <summary>Output:</summary>
 ```
 [4/10] [wc -l 4.txt] ==> [3 4.txt]
 ERROR: [2/10] [wc -l 2.txt] ==> [wc: 2.txt: No such file or directory; exit status 1;]
@@ -40,6 +41,7 @@ ERROR: [6/10] [wc -l 6.txt] ==> [wc: 6.txt: No such file or directory; exit stat
 ERROR: [8/10] [wc -l 8.txt] ==> [wc: 8.txt: No such file or directory; exit status 1;]
 ...
 ```
+</details>
 
 
 ## Read command input from file 
@@ -48,7 +50,8 @@ Use param `{{LINE}}` to use job param from file.
 ```sh
 ./threadme -cmd 'bash sendmail.sh {{LINE}}' -f customers.txt
 ```
-Output:
+<details>
+    <summary>Output:</summary>
 ```
 [0/8256] [bash sendmail.sh a@a.example.com] ==> [Sent: a@a.example.com]
 ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit status 1;]
@@ -57,6 +60,7 @@ ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit statu
 [3/8256] [bash sendmail.sh d@d.example.com] ==> [Sent: d@d.example.com]
 ...
 ```
+</details>
 
 ## Stop all jobs if error message occurs 
 Use `-stop-on` flag to halt all tasks upon encountering an error message.
@@ -65,7 +69,8 @@ Note: All tasks will be discontinued if any job yields a message indicating a st
 ```sh
 ./threadme -cmd 'bash sendmail.sh {{LINE}}' -f customers.txt -stop-on 'Error:'
 ```
-Output:
+<details>
+    <summary>Output:</summary>
 ```
 [0/8256] [bash sendmail.sh a@a.example.com] ==> [Sent: a@a.example.com]
 ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit status 1;]
@@ -77,6 +82,7 @@ ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit statu
 > Stopping all workers!
 > Duration: 12.03473712s
 ```
+</details>
 
 ## Keep running while message present 
 Use `-while` flag to cease all tasks when a success message is absent from any of the jobs.
@@ -85,7 +91,8 @@ _Note_: All jobs will be terminated if the message differs for even a single job
 ```sh
 ./threadme -cmd 'bash sendmail.sh {{LINE}}' -f customers.txt -while 'Sent:'
 ```
-Output:
+<details>
+    <summary>Output:</summary>
 ```
 [0/8256] [bash sendmail.sh a@a.example.com] ==> [Sent: a@a.example.com]
 ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit status 1;]
@@ -93,6 +100,7 @@ ERROR: [4/8256] [bash sendmail.sh e@e.example.com] ==> [Invalid user; exit statu
 > Stopping all workers!
 > Duration: 7.03404163s 
 ```
+</details>
 
 
 ## Use different interpreter 
