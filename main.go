@@ -30,7 +30,13 @@ func main() {
 	stopOnMsg := flag.String("stop-on", "", "If any job gets this message, all stops")
 	whileMsg := flag.String("while", "", "Keep running while all have this message")
 	interpreter := flag.String("interpreter", cmdInterpreter, "Interpreter for command")
+	forever := flag.Bool("forever", false, "Run forever")
 	flag.Parse()
+
+	// check flag conflicts
+	if *forever && *fpath != "" {
+		log.Fatalf("You must choose one: `--forever` or `-fpath` flag!")
+	}
 
 	if *interpreter != "" {
 		cmdInterpreter = *interpreter
@@ -49,6 +55,11 @@ func main() {
 		*delayMs = 1
 	}
 
+	if *forever {
+		*n = 0
+		*delayMs = 250 // larger delay
+	}
+
 	var flines []string
 	if _, err := os.Stat(*fpath); err == nil {
 		lines, err := readLines(*fpath)
@@ -60,10 +71,16 @@ func main() {
 	}
 
 	fmt.Printf("%20s: [%s]\n", "Command", *cmd)
-	fmt.Printf("%20s: [%s]\n", "Interpreter", *interpreter)
+
+	if *interpreter != os.Getenv("SHELL") {
+		fmt.Printf("%20s: [%s]\n", "Interpreter", *interpreter)
+	}
+
 	if len(flines) > 0 {
 		fmt.Printf("%20s: [%s]\n", "File to read", *fpath)
 		fmt.Printf("%20s: [%d]\n", "Lines in file", len(flines))
+	} else if *forever {
+		fmt.Printf("%20s: ∞ \n", "Run forever")
 	} else {
 		fmt.Printf("%20s: [%d]\n", "Job count to perform", *n)
 	}
@@ -105,14 +122,27 @@ func main() {
 			flines = append(flines, strconv.Itoa(i))
 		}
 	}
-
-	// lesgoooooo!
 	total := len(flines)
-	for i, fline := range flines {
-		i := i
+	sTotal := fmt.Sprintf("%d", total)
+	if *forever {
+		sTotal = "∞"
+	}
+	for index := 0; ; index++ {
+		i := index
+
+		// stop on limit reached if not forever
+		if !*forever && (i > total-1) {
+			break
+		}
+
+		// Replace variables
 		flcmd := *cmd
 		flcmd = strings.ReplaceAll(flcmd, "{{N}}", fmt.Sprintf("%d", i))
-		flcmd = strings.ReplaceAll(flcmd, "{{LINE}}", fline)
+
+		// Replace variables from file
+		if !*forever && i <= total-1 {
+			flcmd = strings.ReplaceAll(flcmd, "{{LINE}}", flines[i])
+		}
 
 		sg.Go(func() error {
 			// log.Printf("`%v`", flcmd)
@@ -131,12 +161,12 @@ func main() {
 
 			errStr = strings.TrimSpace(errStr)
 			if errStr != "" {
-				log.Printf("ERROR: [%d/%d] [%s] ==> [%s]", i, total, flcmd, errStr)
+				log.Printf("ERROR: [%d/%s] [%s] ==> [%s]", i, sTotal, flcmd, errStr)
 				// do not mark semgroup job with error. we printed it
 				return nil
 
 			}
-			log.Printf("[%d/%d] [%s] ==> [%s]", i, total, flcmd, cmdOut)
+			log.Printf("[%d/%s] [%s] ==> [%s]", i, sTotal, flcmd, cmdOut)
 
 			// Stop if not expected message
 			if *whileMsg != "" && !strings.Contains(string(cmdOut), *whileMsg) {
