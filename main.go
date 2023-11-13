@@ -60,6 +60,7 @@ func main() {
 	}
 
 	fmt.Printf("%20s: [%s]\n", "Command", *cmd)
+	fmt.Printf("%20s: [%s]\n", "Interpreter", *interpreter)
 	if len(flines) > 0 {
 		fmt.Printf("%20s: [%s]\n", "File to read", *fpath)
 		fmt.Printf("%20s: [%d]\n", "Lines in file", len(flines))
