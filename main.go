@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-var cmdInterpreter = "/bin/bash"
+var cmdInterpreter = os.Getenv("SHELL")
 
 const example = "`./threadme -t5 -cmd 'echo \"{{N}}:{{LINE}}\"'`"
 
