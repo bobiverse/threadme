@@ -61,7 +61,14 @@ func main() {
 	}
 
 	var flines []string
-	if _, err := os.Stat(*fpath); err == nil {
+	if *fpath != "" {
+		_, err := os.Stat(*fpath)
+		if err != nil {
+			log.Fatalf("\n\nFile `%s` error: %s\n", *fpath, err)
+			return
+		}
+
+		// file exists, try to read
 		lines, err := readLines(*fpath)
 		if err != nil {
 			log.Fatalf("\n\nFILE READ ERROR!\n%s\n", err)
@@ -127,6 +134,7 @@ func main() {
 	if *forever {
 		sTotal = "∞"
 	}
+
 	for index := 0; ; index++ {
 		i := index
 
