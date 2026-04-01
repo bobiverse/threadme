@@ -11,3 +11,4 @@ threadme_*
 *.test
 *.out
 *.example
+.vscode
