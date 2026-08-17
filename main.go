@@ -3,20 +3,29 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/fatih/semgroup"
-	"golang.org/x/net/context"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
 
 var cmdInterpreter = os.Getenv("SHELL")
+
+// Process groups of jobs that are running right now, so cancellation can kill
+// them instead of leaving them orphaned when the program exits.
+var (
+	runningMu sync.Mutex
+	running   = map[int]struct{}{}
+)
 
 const example = "`./threadme -t5 -cmd 'echo \"{{N}}:{{LINE}}\"'`"
 
@@ -38,9 +47,11 @@ func main() {
 		log.Fatalf("You must choose one: `--forever` or `-fpath` flag!")
 	}
 
-	if *interpreter != "" {
-		cmdInterpreter = *interpreter
+	shellEnv := cmdInterpreter // package default, read from $SHELL at startup
+	if err := checkInterpreter(*interpreter); err != nil {
+		log.Fatal(err)
 	}
+	cmdInterpreter = *interpreter
 
 	*cmd = strings.TrimSpace(*cmd)
 	if *cmd == "" {
@@ -79,8 +90,8 @@ func main() {
 
 	fmt.Printf("%20s: [%s]\n", "Command", *cmd)
 
-	if *interpreter != os.Getenv("SHELL") {
-		fmt.Printf("%20s: [%s]\n", "Interpreter", *interpreter)
+	if cmdInterpreter != shellEnv {
+		fmt.Printf("%20s: [%s]\n", "Interpreter", cmdInterpreter)
 	}
 
 	if len(flines) > 0 {
@@ -119,6 +130,8 @@ func main() {
 		<-ctx.Done()
 		// The context was canceled
 		log.Printf("> Stopping all workers!")
+		// kill still-running jobs, otherwise os.Exit() orphans them
+		killRunning()
 		log.Printf("> Duration: %s ", time.Since(tStart))
 		os.Exit(1)
 	}()
@@ -159,7 +172,7 @@ func main() {
 			// log.Printf("%v -- %v -- %v", cmdOut, errBuf, err)
 
 			errStr := ""
-			if errBuf != nil && len(errBuf) > 0 {
+			if len(errBuf) > 0 {
 				errStr += strings.TrimSpace(string(errBuf)) + "; "
 			}
 
@@ -253,22 +266,73 @@ func runBashWithTimeout(timeout time.Duration, cmdstr string) ([]byte, []byte, e
 		return nil, nil, err
 	}
 
+	// Setpgid made the child a group leader, so its PID is the group ID. Take it
+	// now: once cmd.Wait() reaps the child the PID can be recycled, and looking
+	// the group up later would point at an unrelated process.
+	pgid := cmd.Process.Pid
+
+	addRunning(pgid)
+	defer removeRunning(pgid)
+
 	if timeout > 0 {
-		go func() {
-			time.Sleep(timeout) // wait in background
-
-			pgid, err := syscall.Getpgid(cmd.Process.Pid)
-			if err == nil {
-				// log.Printf("[ KILL ] Kill process of command: %s", name)
-				if err := syscall.Kill(-pgid, 15); err != nil { // note the minus sign
-					// skip error check
-					log.Printf("(Warning: %s)", err)
-				}
-			}
-
-		}()
+		timer := time.AfterFunc(timeout, func() {
+			killGroup(pgid)
+		})
+		defer timer.Stop() // job finished in time: no delayed kill
 	}
 
 	err := cmd.Wait()
 	return bufOut.Bytes(), bufErr.Bytes(), err
+}
+
+// killGroup sends SIGTERM to a whole process group, so shell pipelines and
+// their grandchildren die too.
+func killGroup(pgid int) {
+	err := syscall.Kill(-pgid, syscall.SIGTERM) // note the minus sign
+	if err == nil || errors.Is(err, syscall.ESRCH) {
+		return // gone already: the job finished just before the signal
+	}
+	log.Printf("(Warning: %s)", err)
+}
+
+func addRunning(pgid int) {
+	runningMu.Lock()
+	running[pgid] = struct{}{}
+	runningMu.Unlock()
+}
+
+func removeRunning(pgid int) {
+	runningMu.Lock()
+	delete(running, pgid)
+	runningMu.Unlock()
+}
+
+// runningPgids returns a snapshot of the process groups running right now.
+func runningPgids() []int {
+	runningMu.Lock()
+	defer runningMu.Unlock()
+
+	pgids := make([]int, 0, len(running))
+	for pgid := range running {
+		pgids = append(pgids, pgid)
+	}
+	return pgids
+}
+
+// killRunning SIGTERMs every job still running. Best effort: a job that just
+// finished is already gone and only logs a warning.
+func killRunning() {
+	for _, pgid := range runningPgids() {
+		killGroup(pgid)
+	}
+}
+
+// checkInterpreter reports whether jobs have a shell to run in. The
+// `--interpreter` flag already defaults to $SHELL, so an empty value here means
+// neither was set.
+func checkInterpreter(interpreter string) error {
+	if interpreter == "" {
+		return errors.New("no interpreter: $SHELL is not set and no `--interpreter` flag was given")
+	}
+	return nil
 }
