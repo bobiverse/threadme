@@ -48,11 +48,10 @@ func main() {
 	}
 
 	shellEnv := cmdInterpreter // package default, read from $SHELL at startup
-	interp, err := resolveInterpreter(*interpreter)
-	if err != nil {
+	if err := checkInterpreter(*interpreter); err != nil {
 		log.Fatal(err)
 	}
-	cmdInterpreter = interp
+	cmdInterpreter = *interpreter
 
 	*cmd = strings.TrimSpace(*cmd)
 	if *cmd == "" {
@@ -91,8 +90,8 @@ func main() {
 
 	fmt.Printf("%20s: [%s]\n", "Command", *cmd)
 
-	if interp != shellEnv {
-		fmt.Printf("%20s: [%s]\n", "Interpreter", interp)
+	if cmdInterpreter != shellEnv {
+		fmt.Printf("%20s: [%s]\n", "Interpreter", cmdInterpreter)
 	}
 
 	if len(flines) > 0 {
@@ -267,14 +266,10 @@ func runBashWithTimeout(timeout time.Duration, cmdstr string) ([]byte, []byte, e
 		return nil, nil, err
 	}
 
-	// Resolve the group here, before cmd.Wait() reaps the child. Afterwards the
-	// PID can be recycled, so a later lookup may point at an unrelated process.
-	// Until it is reaped the PID stays reserved, so this cannot fail; the
-	// fallback is only there because Setpgid already guarantees the answer.
-	pgid, err := syscall.Getpgid(cmd.Process.Pid)
-	if err != nil {
-		pgid = cmd.Process.Pid // Setpgid makes the child its own group leader
-	}
+	// Setpgid made the child a group leader, so its PID is the group ID. Take it
+	// now: once cmd.Wait() reaps the child the PID can be recycled, and looking
+	// the group up later would point at an unrelated process.
+	pgid := cmd.Process.Pid
 
 	addRunning(pgid)
 	defer removeRunning(pgid)
@@ -286,17 +281,18 @@ func runBashWithTimeout(timeout time.Duration, cmdstr string) ([]byte, []byte, e
 		defer timer.Stop() // job finished in time: no delayed kill
 	}
 
-	err = cmd.Wait()
+	err := cmd.Wait()
 	return bufOut.Bytes(), bufErr.Bytes(), err
 }
 
 // killGroup sends SIGTERM to a whole process group, so shell pipelines and
 // their grandchildren die too.
 func killGroup(pgid int) {
-	if err := syscall.Kill(-pgid, syscall.SIGTERM); err != nil { // note the minus sign
-		// a job that just finished is already gone: warn, do not fail
-		log.Printf("(Warning: %s)", err)
+	err := syscall.Kill(-pgid, syscall.SIGTERM) // note the minus sign
+	if err == nil || errors.Is(err, syscall.ESRCH) {
+		return // gone already: the job finished just before the signal
 	}
+	log.Printf("(Warning: %s)", err)
 }
 
 func addRunning(pgid int) {
@@ -331,11 +327,12 @@ func killRunning() {
 	}
 }
 
-// resolveInterpreter checks the shell jobs will run with. The `--interpreter`
-// flag already defaults to $SHELL, so an empty value means neither was set.
-func resolveInterpreter(interpreterFlag string) (string, error) {
-	if interpreterFlag == "" {
-		return "", errors.New("no interpreter: $SHELL is not set and no `--interpreter` flag was given")
+// checkInterpreter reports whether jobs have a shell to run in. The
+// `--interpreter` flag already defaults to $SHELL, so an empty value here means
+// neither was set.
+func checkInterpreter(interpreter string) error {
+	if interpreter == "" {
+		return errors.New("no interpreter: $SHELL is not set and no `--interpreter` flag was given")
 	}
-	return interpreterFlag, nil
+	return nil
 }

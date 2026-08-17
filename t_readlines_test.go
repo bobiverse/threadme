@@ -33,6 +33,22 @@ func TestReadLinesReturnsAllLinesInOrder(t *testing.T) {
 	}
 }
 
+func TestReadLinesEmptyFileReturnsNoLines(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "empty.txt")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+
+	got, err := readLines(path)
+	if err != nil {
+		t.Fatalf("readLines returned unexpected error: %v", err)
+	}
+
+	if len(got) != 0 {
+		t.Fatalf("expected no lines, got %d: %v", len(got), got)
+	}
+}
+
 func TestReadLinesMissingFileReturnsError(t *testing.T) {
 	_, err := readLines(filepath.Join(t.TempDir(), "does-not-exist.txt"))
 	if err == nil {
