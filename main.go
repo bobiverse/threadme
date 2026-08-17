@@ -3,11 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/fatih/semgroup"
-	"golang.org/x/net/context"
 	"log"
 	"os"
 	"os/exec"
