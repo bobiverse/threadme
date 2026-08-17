@@ -79,8 +79,7 @@ func TestRunBashWithTimeoutDoesNotKillAfterJobFinished(t *testing.T) {
 
 	marker := filepath.Join(t.TempDir(), "survived")
 	// stdout is redirected so the background child does not hold the pipe open
-	job := fmt.Sprintf("(sleep %d; touch %s) >/dev/null 2>&1 & exit 0", int(childLife.Seconds()), marker)
-
+	job := fmt.Sprintf("(sleep %d; touch %q) >/dev/null 2>&1 & exit 0", int(childLife.Seconds()), marker)
 	start := time.Now()
 	if _, _, err := runBashWithTimeout(timeLimit, job); err != nil {
 		t.Fatalf("runBashWithTimeout returned unexpected error: %v", err)
