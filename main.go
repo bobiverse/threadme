@@ -173,7 +173,7 @@ func main() {
 			// log.Printf("%v -- %v -- %v", cmdOut, errBuf, err)
 
 			errStr := ""
-			if errBuf != nil && len(errBuf) > 0 {
+			if len(errBuf) > 0 {
 				errStr += strings.TrimSpace(string(errBuf)) + "; "
 			}
 
